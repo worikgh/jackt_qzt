@@ -6,6 +6,9 @@
 //! 3. String holing path for output file
 //! All JACK notifications are also printed out.
 use clap::Parser;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufWriter;
 use std::sync::mpsc::{self, Receiver, Sender};
 
 #[derive(Parser, Debug)]
@@ -23,6 +26,9 @@ fn main() {
     let args = Args::parse();
     let port_in: String = args.port_in;
     let port_out: String = args.port_out;
+    let file_name = args.file_name;
+    let file = File::create(file_name.as_str()).expect("Opening file {file_name}");
+    let mut writer = BufWriter::new(file);
 
     // Create client
     let (client, _status) =
@@ -63,14 +69,12 @@ fn main() {
                 break;
             }
         };
-        if !message
-            .iter()
-            .filter(|x| *x != &0.0)
-            .collect::<Vec<&f32>>()
-            .is_empty()
-        {
-            eprintln!("Got: {:?}", message);
+
+        for v in message {
+            let bytes = v.to_ne_bytes();
+            writer.write_all(&bytes).unwrap();
         }
+        writer.flush().unwrap();
     }
 
     active_client.deactivate().unwrap();
